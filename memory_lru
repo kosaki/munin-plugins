@@ -41,25 +41,25 @@ if ($ARGV[0] and $ARGV[0] eq "config")
 	print "graph_info xxx\n";
 	print "graph_order active_anon inactive_anon active_file inactive_file unevictable\n";
 
-	print "active_anon.label active_anon\n";
+	print "active_anon.label Active(anon)\n";
 	print "active_anon.draw AREA\n";
-	print "active_anon.info Active(anon)\n";
+	print "active_anon.info Swap backed pages. (e.g. anon, tmpfs, shmem, shmfs)\n";
 
-	print "inactive_anon.label inactive_anon\n";
+	print "inactive_anon.label Inactive(anon)\n";
 	print "inactive_anon.draw STACK\n";
-	print "inactive_anon.info Inctive(anon)\n";
+	print "inactive_anon.info Swap backed pages, this pages might be evicted soon\n";
 
-	print "active_file.label active_file\n";
+	print "active_file.label Active(file)\n";
 	print "active_file.draw STACK\n";
-	print "active_file.info Active(file)\n";
+	print "active_file.info File backed page. (i.e. regular file cache)\n";
 
-	print "inactive_file.label inactive_file\n";
+	print "inactive_file.label Inactive(file)\n";
 	print "inactive_file.draw STACK\n";
-	print "inactive_file.info Inctive(file)\n";
+	print "inactive_file.info File backed page. this pages might be evicted soon\n";
 
-	print "unevictable.label unevictable\n";
+	print "unevictable.label Unevictable\n";
 	print "unevictable.draw STACK\n";
-	print "unevictable.info Unevictable\n";
+	print "unevictable.info Unevictable Memory (e.g. mlock()ed, shmctl(SHM_LOCK)ed, ramfs pages)\n";
 	
 	exit 0;
 }
