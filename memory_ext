@@ -17,6 +17,15 @@
 #    - Introduce dirty
 #    - Introduce writeback
 #    - Change display order
+#  v2
+#    - Remove Mlocked
+#    - Instead, Introduce Unevictable
+#    - Rename swap to swap_used
+#    - Anon use Active(anon) + Inactive(anon) instead AnonPages
+#    - Remove Buffers
+#    - Remove Dirty field
+#    - Instead, Introduce file_cache(clean) and file_cache(dirty)
+#    - Cleanups
 #
 # Parameters:
 #
@@ -49,7 +58,7 @@ my %mems;
 if ($ARGV[0] and $ARGV[0] eq "config")
 {
 	print "graph_args --base 1024 -l 0 --vertical-label Bytes --upper-limit ", $mems{'MemTotal'}, "\n";
-	print "graph_title Memory usage\n";
+	print "graph_title Extended memory usage\n";
 	print "graph_category system\n";
 	print "graph_info This graph shows what the machine uses its memory for.\n";
 	print "graph_order ",
@@ -74,6 +83,10 @@ if ($ARGV[0] and $ARGV[0] eq "config")
 		{
 			print "vmalloc_used ";
 		}
+		if (exists $mems{'Unevictable'})
+		{
+			print "unevictable "
+		}	
 		if (exists $mems{'SReclaimable'})
 		{
 		    print "slab_unreclaim ";   
@@ -83,22 +96,14 @@ if ($ARGV[0] and $ARGV[0] eq "config")
 		{
 			print "slab ";
 		}
-		print "buffers ",
-		"cached ",
+		print "file_cache_dirty ",
+		"file_cache_clean ",
 		"free ",
-		"swap ";
+		"swap_used ";
 
 		if (exists $mems{'Mapped'})
 		{
 			print "mapped ";
-		}
-		if (exists $mems{'Mlocked'})
-		{
-			print "mlocked "
-		}	
-		if (exists $mems{'Dirty'})
-		{
-			print "dirty "
 		}
 		if (exists $mems{'Writeback'})
 		{
@@ -139,6 +144,12 @@ if ($ARGV[0] and $ARGV[0] eq "config")
 		print "vmalloc_used.draw STACK\n";
 		print "vmalloc_used.info Virtual memory used by the kernel (used when the memory does not have to be physically contiguous).\n";
 	}
+	if (exists $mems{'Unevictable'})
+	{
+		print "unevictable.label unevictable\n";
+		print "unevictable.draw STACK\n";
+		print "unevictable.info Unevictable pages (e.g. mlock()ed).\n";
+	}
 	if (exists $mems{'SReclaimable'})
 	{
 	    print "slab_reclaimable.label slab(reclamable)\n";
@@ -155,36 +166,24 @@ if ($ARGV[0] and $ARGV[0] eq "config")
 		print "slab.draw STACK\n";
 		print "slab.info Memory used by the kernel (major users are caches like inode, dentry, etc).\n";
 	}
-	print "buffers.label buffers\n";
-	print "buffers.draw STACK\n";
-	print "buffers.info Block device (e.g. harddisk) cache. Also where \"dirty\" blocks are stored until written.\n";
-	print "cached.label cache\n";
-	print "cached.draw STACK\n";
-	print "cached.info Parked file data (file content) cache.\n";
+	print "file_cache_dirty.label file_cache(dirty)\n";
+	print "file_cache_dirty.draw STACK\n";
+	print "file_cache_dirty.info Parked dirtied file data (file content) cache.\n";
+	print "file_cache_clean.label file_cache(clean)\n";
+	print "file_cache_clean.draw STACK\n";
+	print "file_cache_clean.info Parked non-dirtied file data (file content) cache.\n";
 	print "free.label unused\n";
 	print "free.draw STACK\n";
 	print "free.info Wasted memory. Memory that is not used for anything at all.\n";
-	print "swap.label swap\n";
-	print "swap.draw LINE2\n";
-	print "swap.info Swap space used.\n";
+	print "swap_used.label swap_used\n";
+	print "swap_used.draw LINE2\n";
+	print "swap_used.info Swap space used.\n";
 
 	if (exists $mems{'Mapped'})
 	{
 		print "mapped.label mapped\n";
 		print "mapped.draw LINE2\n";
 		print "mapped.info All mmap()ed pages.\n";
-	}
-	if (exists $mems{'Mlocked'})
-	{
-		print "mlocked.label mlocked\n";
-		print "mlocked.draw LINE2\n";
-		print "mlocked.info All mlock()ed pages.\n";
-	}
-	if (exists $mems{'Dirty'})
-	{
-		print "dirty.label dirty\n";
-		print "dirty.draw LINE2\n";
-		print "dirty.info All dirty pages.\n";
 	}
 	if (exists $mems{'Writeback'})
 	{
@@ -198,83 +197,33 @@ if ($ARGV[0] and $ARGV[0] eq "config")
 # Any optional value needs to be initialized to zero if it's used in a calculation below
 # and is has not been set by &fetch_meminfo
 
-print "anon.value ", $mems{'AnonPages'}, "\n";
-if (exists $mems{'PageTables'})
-{
-	print "page_tables.value ", $mems{'PageTables'}, "\n";
-}
-else
-{
-	$mems{'PageTables'} = 0;
-}
-if (exists $mems{'KernelStack'})
-{
-    print "kernel_stack.value ", $mems{'KernelStack'}, "\n";
-}
-if (exists $mems{'SwapCached'})
-{
-	print "swap_cache.value ", $mems{'SwapCached'}, "\n";
-}
-else
-{
-	$mems{'SwapCached'} = 0;
-}
-if (exists $mems{'Shmem'})
-{
-	print "shmem.value ", $mems{'Shmem'}, "\n";
-}
-if (exists $mems{'VmallocUsed'})
-{
-	print "vmalloc_used.value ", $mems{'VmallocUsed'}, "\n";
-}
-else
-{
-	$mems{'VmallocUsed'} = 0;
-}
-if (exists $mems{'SReclaimable'})
-{
-	print "slab_unreclaim.value ", $mems{'SUnreclaim'}, "\n";
-	print "slab_reclaimable.value ", $mems{'SReclaimable'}, "\n";
-}
-elsif (exists $mems{'Slab'})
-{
-	print "slab.value ", $mems{'Slab'}, "\n";
-}
-else
-{
-	$mems{'Slab'} = 0;
-}
-print "buffers.value ", $mems{'Buffers'}, "\n";
-if (exists $mems{'Shmem'})
-{
-	print "cached.value ", $mems{'Cached'} - $mems{'Shmem'}, "\n";
-}
-print "free.value ", $mems{'MemFree'}, "\n";
-print "swap.value ", $mems{'SwapTotal'} - $mems{'SwapFree'}, "\n";
+$anon = $mems{'Active(anon)'} + $mems{'Inactive(anon)'};
+$file = $mems{'Active(file)'} + $mems{'Inactive(file)'};
 
-if (exists $mems{'Mapped'})
-{
-	print "mapped.value ", $mems{'Mapped'}, "\n";
-}
-if (exists $mems{'Mlocked'})
-{
-	print "mlocked.value ", $mems{'Mlocked'}, "\n";
-}
-if (exists $mems{'Dirty'})
-{
-	print "dirty.value ", $mems{'Dirty'}, "\n";
-}
-if (exists $mems{'Writeback'})
-{
-	print "writeback.value ", $mems{'Writeback'}, "\n";
-}
+print "anon.value ", $anon - $mems{'SwapCached'} - $mems{'Shmem'}, "\n";
+print "page_tables.value ", $mems{'PageTables'}, "\n";
+print "kernel_stack.value ", $mems{'KernelStack'}, "\n";
+print "swap_cache.value ", $mems{'SwapCached'}, "\n";
+print "shmem.value ", $mems{'Shmem'}, "\n";
+print "vmalloc_used.value ", $mems{'VmallocUsed'}, "\n";
+print "unevictable.value ", $mems{'Unevictable'}, "\n";
+print "slab_unreclaim.value ", $mems{'SUnreclaim'}, "\n";
+print "slab_reclaimable.value ", $mems{'SReclaimable'}, "\n";
+print "file_cache_dirty.value ",  $mems{'Dirty'}, "\n";
+print "file_cache_clean.value ",  $file - $mems{'Dirty'}, "\n";
+print "free.value ", $mems{'MemFree'}, "\n";
+print "swap_used.value ", $mems{'SwapTotal'} - $mems{'SwapFree'}, "\n";
+print "mapped.value ", $mems{'Mapped'}, "\n";
+print "dirty.value ", $mems{'Dirty'}, "\n";
+print "writeback.value ", $mems{'Writeback'}, "\n";
+
 
 sub fetch_meminfo
 {
 	open (IN, "/proc/meminfo") || die "Could not open /proc/meminfo for reading: $!";
 	while (<IN>)
 	{
-		if (/^(\w+):\s*(\d+)\s+kb/i)
+		if (/^([\w\(\)]+):\s*(\d+)\s+kb/i)
 		{
 			$mems{"$1"} = $2 * 1024;
 		}
